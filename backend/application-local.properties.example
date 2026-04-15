@@ -1,0 +1,7 @@
+# Copy this file to application-local.properties and fill with your local values.
+# The real application-local.properties is gitignored and should never be committed.
+
+spring.datasource.url=jdbc:postgresql://127.0.0.1:5433/earthquake_dashboard
+spring.datasource.username=your_db_username
+spring.datasource.password=your_db_password
+
