@@ -5,3 +5,7 @@ spring.datasource.url=jdbc:postgresql://127.0.0.1:5433/earthquake_dashboard
 spring.datasource.username=your_db_username
 spring.datasource.password=your_db_password
 
+# Optional USGS timeout overrides (milliseconds)
+# earthquake.usgs.connect-timeout-ms=3000
+# earthquake.usgs.request-timeout-ms=5000
+

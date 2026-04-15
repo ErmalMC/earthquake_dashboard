@@ -10,6 +10,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -37,15 +39,22 @@ public class EarthquakeService {
             ObjectMapper objectMapper,
             @Value("${earthquake.usgs.url:https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson}") String usgsUrl,
             @Value("${earthquake.filter.min-magnitude:2.0}") double minMagnitude,
-            @Value("${earthquake.filter.since:1970-01-01T00:00:00Z}") String sinceConfig
+            @Value("${earthquake.filter.since:1970-01-01T00:00:00Z}") String sinceConfig,
+            @Value("${earthquake.usgs.connect-timeout-ms:3000}") long connectTimeoutMs,
+            @Value("${earthquake.usgs.request-timeout-ms:5000}") long requestTimeoutMs
     ) {
         this.earthquakeRepository = earthquakeRepository;
         this.objectMapper = objectMapper;
-        this.httpClient = HttpClient.newHttpClient();
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(sanitizeTimeout(connectTimeoutMs, 3000)))
+                .build();
         this.usgsUri = URI.create(usgsUrl);
         this.minMagnitude = minMagnitude;
         this.sinceThreshold = parseSinceInstant(sinceConfig);
+        this.requestTimeout = Duration.ofMillis(sanitizeTimeout(requestTimeoutMs, 5000));
     }
+
+    private final Duration requestTimeout;
 
     @Transactional
     public List<EarthquakeDTO> refreshEarthquakes() {
@@ -59,6 +68,17 @@ public class EarthquakeService {
 
     public List<EarthquakeDTO> getStoredEarthquakes() {
         return toSortedDtos(earthquakeRepository.findAllByOrderByEventTimeDesc());
+    }
+
+    public List<EarthquakeDTO> getStoredEarthquakes(Double minMagnitude, Instant startTime, Instant endTime) {
+        validateStoredFilters(minMagnitude, startTime, endTime);
+
+        List<Earthquake> earthquakes = earthquakeRepository.findAllByOrderByEventTimeDesc();
+
+        return earthquakes.stream()
+                .filter(earthquake -> matchesStoredFilters(earthquake, minMagnitude, startTime, endTime))
+                .map(EarthquakeDTO::fromEntity)
+                .toList();
     }
 
     @Transactional
@@ -94,7 +114,10 @@ public class EarthquakeService {
     }
 
     private String fetchUsgsPayload() {
-        HttpRequest request = HttpRequest.newBuilder(usgsUri).GET().build();
+        HttpRequest request = HttpRequest.newBuilder(usgsUri)
+                .timeout(requestTimeout)
+                .GET()
+                .build();
 
         try {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
@@ -104,6 +127,8 @@ public class EarthquakeService {
                 );
             }
             return response.body();
+        } catch (HttpTimeoutException e) {
+            throw new IllegalStateException("USGS API request timed out.", e);
         } catch (IOException e) {
             throw new IllegalStateException("Failed to call USGS API.", e);
         } catch (InterruptedException e) {
@@ -156,6 +181,38 @@ public class EarthquakeService {
         }
     }
 
+    private void validateStoredFilters(Double minMagnitude, Instant startTime, Instant endTime) {
+        if (minMagnitude != null && minMagnitude < 0) {
+            throw new IllegalArgumentException("minMagnitude must be greater than or equal to 0.");
+        }
+
+        if (startTime != null && endTime != null && startTime.isAfter(endTime)) {
+            throw new IllegalArgumentException("startTime must be before or equal to endTime.");
+        }
+    }
+
+    private boolean matchesStoredFilters(Earthquake earthquake, Double minMagnitude, Instant startTime, Instant endTime) {
+        if (earthquake == null) {
+            return false;
+        }
+
+        Double magnitude = earthquake.getMagnitude();
+        if (minMagnitude != null && (magnitude == null || magnitude <= minMagnitude)) {
+            return false;
+        }
+
+        Instant eventTime = earthquake.getEventTime();
+        if (startTime != null && (eventTime == null || eventTime.isBefore(startTime))) {
+            return false;
+        }
+
+        if (endTime != null && (eventTime == null || eventTime.isAfter(endTime))) {
+            return false;
+        }
+
+        return true;
+    }
+
     private List<EarthquakeDTO> toSortedDtos(List<Earthquake> earthquakes) {
         return earthquakes.stream()
                 .sorted(Comparator.comparing(Earthquake::getEventTime, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
@@ -196,5 +253,9 @@ public class EarthquakeService {
             return null;
         }
         return asDouble(coordinates.get(index));
+    }
+
+    private long sanitizeTimeout(long candidate, long fallback) {
+        return candidate > 0 ? candidate : fallback;
     }
 }

@@ -1,120 +1,223 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
+import Navbar from './components/Navbar'
+import EarthquakeTable from './components/EarthquakeTable'
+import {
+  deleteEarthquakeById,
+  getEarthquakes,
+  refreshEarthquakes,
+} from './services/earthquakeService'
+
+const DEFAULT_FILTERS = {
+  minMagnitude: '2',
+  location: '',
+  startTime: '',
+  endTime: '',
+}
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [earthquakes, setEarthquakes] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [deletingId, setDeletingId] = useState('')
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [lastUpdated, setLastUpdated] = useState('')
+  const [filters, setFilters] = useState({ ...DEFAULT_FILTERS })
+
+  const serverFilters = useMemo(
+    () => ({
+      minMagnitude: filters.minMagnitude,
+      startTime: filters.startTime,
+      endTime: filters.endTime,
+    }),
+    [filters.endTime, filters.minMagnitude, filters.startTime]
+  )
+
+  const loadEarthquakes = async (currentServerFilters, signal) => {
+    setIsLoading(true)
+    setError('')
+
+    try {
+      const items = await getEarthquakes(currentServerFilters, signal)
+      setEarthquakes(items)
+      setLastUpdated(new Date().toISOString())
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        setError(err.message || 'Failed to load earthquake data.')
+      }
+    } finally {
+      if (!signal?.aborted) {
+        setIsLoading(false)
+      }
+    }
+  }
+
+  useEffect(() => {
+    const controller = new AbortController()
+    loadEarthquakes(serverFilters, controller.signal)
+
+    return () => {
+      controller.abort()
+    }
+  }, [serverFilters])
+
+  const onFilterChange = (event) => {
+    const { name, value } = event.target
+    setFilters((current) => ({ ...current, [name]: value }))
+  }
+
+  const onSync = async () => {
+    setIsSyncing(true)
+    setError('')
+    setNotice('')
+
+    try {
+      await refreshEarthquakes()
+      const items = await getEarthquakes(serverFilters)
+      setEarthquakes(items)
+      setLastUpdated(new Date().toISOString())
+      setNotice('Data synced from USGS successfully.')
+    } catch (err) {
+      setError(err.message || 'Failed to sync earthquake data.')
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
+  const onDelete = async (usgsId) => {
+    if (isSyncing) {
+      setError('Please wait for sync to finish before deleting records.')
+      return
+    }
+
+    if (!usgsId) {
+      setError('Cannot delete this record because the USGS ID is missing.')
+      return
+    }
+
+    const confirmed = window.confirm(
+      `Delete earthquake ${usgsId}? This only removes it from your local database.`
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    setDeletingId(usgsId)
+    setError('')
+    setNotice('')
+
+    try {
+      await deleteEarthquakeById(usgsId)
+      setEarthquakes((current) => current.filter((item) => item.usgsId !== usgsId))
+      setNotice(`Deleted earthquake ${usgsId}.`)
+    } catch (err) {
+      setError(err.message || 'Failed to delete earthquake.')
+    } finally {
+      setDeletingId('')
+    }
+  }
+
+  const filteredEarthquakes = useMemo(() => {
+    const locationQuery = filters.location.trim().toLowerCase()
+
+    return earthquakes.filter((item) => {
+      if (locationQuery) {
+        const place = (item.place ?? '').toLowerCase()
+        const title = (item.title ?? '').toLowerCase()
+        if (!place.includes(locationQuery) && !title.includes(locationQuery)) {
+          return false
+        }
+      }
+
+      return true
+    })
+  }, [earthquakes, filters.location])
+
+  const formattedUpdated = lastUpdated
+    ? new Date(lastUpdated).toLocaleString()
+    : 'Not loaded yet'
+
+  const onClearFilters = () => {
+    setFilters({ ...DEFAULT_FILTERS })
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="app-shell">
+      <Navbar
+        lastUpdated={formattedUpdated}
+        isBusy={isLoading || isSyncing}
+        onSync={onSync}
+        totalCount={earthquakes.length}
+        visibleCount={filteredEarthquakes.length}
+      />
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+      <section className="panel filters-panel">
+        <div className="filters-header">
+          <h2>Filters</h2>
+          <button type="button" className="secondary-button" onClick={onClearFilters}>
+            Clear Filters
+          </button>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
+        <div className="filters-grid">
+          <label>
+            <span>Min magnitude</span>
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              name="minMagnitude"
+              value={filters.minMagnitude}
+              onChange={onFilterChange}
+            />
+          </label>
+
+          <label>
+            <span>Location (place/title)</span>
+            <input
+              type="text"
+              name="location"
+              value={filters.location}
+              onChange={onFilterChange}
+              placeholder="e.g. Alaska"
+            />
+          </label>
+
+          <label>
+            <span>Start time</span>
+            <input
+              type="datetime-local"
+              name="startTime"
+              value={filters.startTime}
+              onChange={onFilterChange}
+            />
+          </label>
+
+          <label>
+            <span>End time</span>
+            <input
+              type="datetime-local"
+              name="endTime"
+              value={filters.endTime}
+              onChange={onFilterChange}
+            />
+          </label>
         </div>
       </section>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      <section className="panel">
+        {notice ? <p className="notice-message">{notice}</p> : null}
+        {error ? <p className="error-message">{error}</p> : null}
+        <EarthquakeTable
+          earthquakes={filteredEarthquakes}
+          isLoading={isLoading}
+          isSyncing={isSyncing}
+          deletingId={deletingId}
+          onDelete={onDelete}
+        />
+      </section>
+    </div>
   )
 }
 

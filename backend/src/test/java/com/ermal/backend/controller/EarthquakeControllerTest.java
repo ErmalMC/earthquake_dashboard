@@ -11,6 +11,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -55,7 +57,7 @@ class EarthquakeControllerTest {
 
     @Test
     void getStoredEarthquakes_returnsOkAndList() throws Exception {
-        when(earthquakeService.getStoredEarthquakes()).thenReturn(List.of(sampleDto(
+        when(earthquakeService.getStoredEarthquakes(null, null, null)).thenReturn(List.of(sampleDto(
                 1L,
                 "eq-1",
                 3.4,
@@ -69,6 +71,29 @@ class EarthquakeControllerTest {
                 .andExpect(jsonPath("$[0].usgsId").value("eq-1"))
                 .andExpect(jsonPath("$[0].magnitude").value(3.4))
                 .andExpect(jsonPath("$[0].place").value("Test place"));
+    }
+
+    @Test
+    void getStoredEarthquakes_withFilters_returnsOkAndList() throws Exception {
+        Instant start = Instant.parse("2026-04-15T10:00:00Z");
+        Instant end = Instant.parse("2026-04-15T12:00:00Z");
+
+        when(earthquakeService.getStoredEarthquakes(3.0, start, end)).thenReturn(List.of(sampleDto(
+                3L,
+                "eq-filtered",
+                4.1,
+                "Filtered place",
+                Instant.parse("2026-04-15T11:15:30Z"),
+                Instant.parse("2026-04-15T11:20:30Z")
+        )));
+
+        mockMvc.perform(get(BASE_PATH)
+                        .param("minMagnitude", "3.0")
+                        .param("startTime", "2026-04-15T10:00:00Z")
+                        .param("endTime", "2026-04-15T12:00:00Z"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].usgsId").value("eq-filtered"))
+                .andExpect(jsonPath("$[0].magnitude").value(4.1));
     }
 
     @Test
@@ -108,12 +133,42 @@ class EarthquakeControllerTest {
     void getStoredEarthquakes_returnsErrorBodyWhenServiceFails() throws Exception {
         doThrow(new IllegalStateException("USGS unavailable"))
                 .when(earthquakeService)
-                .getStoredEarthquakes();
+                .getStoredEarthquakes(isNull(), isNull(), isNull());
 
         mockMvc.perform(get(BASE_PATH))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.message").value("USGS unavailable"))
                 .andExpect(jsonPath("$.path").value(BASE_PATH));
+    }
+
+    @Test
+    void getStoredEarthquakes_returnsBadRequestWhenFilterCombinationIsInvalid() throws Exception {
+        doThrow(new IllegalArgumentException("startTime must be before or equal to endTime."))
+                .when(earthquakeService)
+                .getStoredEarthquakes(eq(2.0), eq(Instant.parse("2026-04-15T13:00:00Z")), eq(Instant.parse("2026-04-15T12:00:00Z")));
+
+        mockMvc.perform(get(BASE_PATH)
+                        .param("minMagnitude", "2.0")
+                        .param("startTime", "2026-04-15T13:00:00Z")
+                        .param("endTime", "2026-04-15T12:00:00Z"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("startTime must be before or equal to endTime."));
+    }
+
+    @Test
+    void getStoredEarthquakes_returnsBadRequestWhenStartTimeFormatIsInvalid() throws Exception {
+        mockMvc.perform(get(BASE_PATH)
+                        .param("startTime", "not-an-instant"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid value 'not-an-instant' for parameter 'startTime'."));
+    }
+
+    @Test
+    void getStoredEarthquakes_returnsBadRequestWhenMinMagnitudeFormatIsInvalid() throws Exception {
+        mockMvc.perform(get(BASE_PATH)
+                        .param("minMagnitude", "abc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid value 'abc' for parameter 'minMagnitude'."));
     }
 
     @Test

@@ -44,6 +44,13 @@ cp application-local.properties.example application-local.properties
 
 Then edit `application-local.properties` with your real local DB credentials.
 
+Optional USGS timeout overrides:
+
+```ini
+earthquake.usgs.connect-timeout-ms=3000
+earthquake.usgs.request-timeout-ms=5000
+```
+
 ## PostgreSQL Setup
 
 Create DB/user (example):
@@ -82,6 +89,12 @@ Base path: `/api/earthquakes`
 
 - `GET /api/earthquakes`
   - Returns stored earthquakes (latest first)
+  - Optional query params:
+    - `minMagnitude` (number, must be `>= 0`, strict filter uses `>`)
+    - `startTime` (ISO-8601 timestamp, e.g. `2026-04-15T10:00:00Z`)
+    - `endTime` (ISO-8601 timestamp)
+  - Invalid query formats (for example non-ISO `startTime`) return `400 Bad Request`
+  - Invalid filter combinations (for example `startTime > endTime`) return `400 Bad Request`
   - `200 OK`
 
 - `POST /api/earthquakes/refresh`

@@ -30,6 +30,7 @@ class EarthquakeServiceIntegrationTest {
     private static final HttpServer MOCK_USGS_SERVER;
     private static final int MOCK_USGS_PORT;
     private static final AtomicInteger MOCK_STATUS = new AtomicInteger(200);
+    private static final AtomicInteger MOCK_DELAY_MS = new AtomicInteger(0);
     private static final AtomicReference<String> MOCK_BODY = new AtomicReference<>("{\"features\":[]}");
 
     static {
@@ -54,6 +55,8 @@ class EarthquakeServiceIntegrationTest {
         registry.add("earthquake.usgs.url", () -> "http://127.0.0.1:" + MOCK_USGS_PORT + "/all_hour.geojson");
         registry.add("earthquake.filter.min-magnitude", () -> "2.0");
         registry.add("earthquake.filter.since", () -> "1970-01-01T00:00:00Z");
+        registry.add("earthquake.usgs.connect-timeout-ms", () -> "1000");
+        registry.add("earthquake.usgs.request-timeout-ms", () -> "1000");
     }
 
     @AfterAll
@@ -65,6 +68,7 @@ class EarthquakeServiceIntegrationTest {
     void setUp() {
         earthquakeRepository.deleteAllInBatch();
         MOCK_STATUS.set(200);
+        MOCK_DELAY_MS.set(0);
         MOCK_BODY.set(validPayload());
     }
 
@@ -96,6 +100,40 @@ class EarthquakeServiceIntegrationTest {
         MOCK_BODY.set("{\"error\":\"Service unavailable\"}");
 
         assertThrows(IllegalStateException.class, () -> earthquakeService.refreshEarthquakes());
+    }
+
+    @Test
+    void refreshEarthquakes_throwsWhenUpstreamApiTimesOut() {
+        MOCK_DELAY_MS.set(1600);
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> earthquakeService.refreshEarthquakes());
+        assertTrue(exception.getMessage().contains("timed out"));
+    }
+
+    @Test
+    void getStoredEarthquakes_appliesMagnitudeAndTimeFilters() {
+        earthquakeService.refreshEarthquakes();
+
+        List<EarthquakeDTO> filtered = earthquakeService.getStoredEarthquakes(
+                3.6,
+                Instant.parse("2024-04-16T00:00:00Z"),
+                Instant.parse("2024-04-16T23:59:59Z")
+        );
+
+        assertEquals(1, filtered.size());
+        assertEquals("eq-3", filtered.getFirst().usgsId());
+    }
+
+    @Test
+    void getStoredEarthquakes_throwsForInvalidTimeRange() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> earthquakeService.getStoredEarthquakes(
+                        2.0,
+                        Instant.parse("2026-04-15T13:00:00Z"),
+                        Instant.parse("2026-04-15T12:00:00Z")
+                )
+        );
     }
 
     private static String validPayload() {
@@ -186,6 +224,15 @@ class EarthquakeServiceIntegrationTest {
     private static final class MockUsgsHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            int delayMs = MOCK_DELAY_MS.get();
+            if (delayMs > 0) {
+                try {
+                    Thread.sleep(delayMs);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+
             byte[] payload = MOCK_BODY.get().getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
             exchange.sendResponseHeaders(MOCK_STATUS.get(), payload.length);
