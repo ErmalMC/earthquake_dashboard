@@ -19,19 +19,19 @@ Full-stack assignment project for fetching, storing, and visualizing recent USGS
 - Parse relevant fields (magnitude, place, title, time, location)
 - Filter at ingestion by configured magnitude/time threshold
 - Replace stored data on refresh to avoid duplicates
-- Display records in frontend table with local UI filters
+- Display records in frontend table with server and client filters
 - Optional delete endpoint and UI action
 
-## Reviewer flow
+## Verification steps
 
-Use this path to quickly verify the full assignment workflow:
+Use the following sequence to verify the full workflow:
 
-1. **Sync**: click `Sync From USGS` in the frontend to fetch, filter, and replace local DB data.
-2. **Filter**: adjust `Min magnitude`, `Location`, `Start time`, and `End time` to narrow the visible records.
-3. **Optional delete**: delete a row (with confirmation) to test `DELETE /api/earthquakes/{usgsId}`.
+1. **Sync**: click `Sync From USGS` to fetch data from USGS, apply ingest filters, and replace local records.
+2. **Filter**: apply `Min magnitude`, `Start time`, and `End time` (server-side), then refine with `Location` (client-side).
+3. **Delete (optional)**: remove a record with confirmation to validate `DELETE /api/earthquakes/{usgsId}`.
 
 ## Notes
 
-- Backend currently defines server-side filtering at ingest time.
-- Frontend applies interactive time/magnitude filters on already stored data.
+- Backend applies filtering both at ingest time and on `GET /api/earthquakes` query filters (`minMagnitude`, `startTime`, `endTime`).
+- Frontend applies an additional interactive `location` filter against `place` and `title`.
 

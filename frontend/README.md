@@ -2,9 +2,9 @@
 
 React frontend for visualizing earthquake data exposed by the Spring Boot backend.
 
-## Backend contract used
+## API contract
 
-The app calls these endpoints:
+The frontend uses the following backend endpoints:
 
 - `GET /api/earthquakes` to load stored data
 - `POST /api/earthquakes/refresh` to fetch latest USGS data and replace DB data
@@ -13,15 +13,13 @@ The app calls these endpoints:
 Filters are split by responsibility:
 
 - Server-side (`GET /api/earthquakes` query params): `minMagnitude`, `startTime`, `endTime`
-- Client-side (instant table filter): `location`
-
-- `location` performs case-insensitive matching against `place` and `title`.
+- Client-side (instant table filter): `location` (case-insensitive match against `place` and `title`)
 
 ## Environment variables
 
 - `VITE_API_BASE_URL` (default: `/api`)
 
-Use default value when Vite proxy is configured (recommended), or set full backend URL when running without proxy.
+Use the default when Vite proxy is enabled, or set a full backend URL when running without proxy.
 
 ## Run locally
 
