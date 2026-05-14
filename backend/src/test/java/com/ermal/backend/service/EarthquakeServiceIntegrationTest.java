@@ -66,7 +66,7 @@ class EarthquakeServiceIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        earthquakeRepository.deleteAllInBatch();
+        earthquakeRepository.deleteAll();
         MOCK_STATUS.set(200);
         MOCK_DELAY_MS.set(0);
         MOCK_BODY.set(validPayload());

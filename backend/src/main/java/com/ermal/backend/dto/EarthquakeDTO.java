@@ -4,7 +4,7 @@ import com.ermal.backend.model.Earthquake;
 import java.time.Instant;
 
 public record EarthquakeDTO(
-        Long id,
+        String id,
         String usgsId,
         Double magnitude,
         String magType,

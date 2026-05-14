@@ -1,13 +1,13 @@
 # Earthquake Dashboard Backend
 
-Spring Boot backend that fetches recent earthquake data from the USGS GeoJSON feed, filters it, stores it in PostgreSQL, and exposes REST endpoints for refresh/list/delete operations.
+Spring Boot backend that fetches recent earthquake data from the USGS GeoJSON feed, filters it, stores it in MongoDB, and exposes REST endpoints for refresh/list/delete operations.
 
 ## Tech Stack
 
 - Java 21
 - Spring Boot 3.5
-- Spring Data JPA
-- PostgreSQL
+- Spring Data MongoDB
+- MongoDB
 - Gradle (wrapper included)
 - JUnit 5 + Spring test support
 
@@ -42,7 +42,7 @@ Sample file provided:
 cp application-local.properties.example application-local.properties
 ```
 
-Then edit `application-local.properties` with your real local DB credentials.
+Then edit `application-local.properties` with your local MongoDB URI.
 
 Optional USGS timeout overrides:
 
@@ -51,27 +51,18 @@ earthquake.usgs.connect-timeout-ms=3000
 earthquake.usgs.request-timeout-ms=5000
 ```
 
-## PostgreSQL Setup
+## MongoDB Setup
 
-Create DB/user (example):
+Run MongoDB locally (example with Docker):
 
 ```bash
-sudo -u postgres psql -p 5433
-```
-
-```sql
-CREATE USER earthquake_app WITH PASSWORD 'your_password';
-CREATE DATABASE earthquake_dashboard OWNER earthquake_app;
-GRANT ALL PRIVILEGES ON DATABASE earthquake_dashboard TO earthquake_app;
-\q
+docker run --name earthquake-mongo -p 27017:27017 -d mongo:7
 ```
 
 Example `application-local.properties`:
 
 ```ini
-spring.datasource.url=jdbc:postgresql://127.0.0.1:5433/earthquake_dashboard
-spring.datasource.username=earthquake_app
-spring.datasource.password=your_password
+spring.data.mongodb.uri=mongodb://127.0.0.1:27017/earthquake_dashboard
 ```
 
 ## Run Backend
@@ -98,7 +89,7 @@ Base path: `/api/earthquakes`
   - `200 OK`
 
 - `POST /api/earthquakes/refresh`
-  - Fetches from USGS, filters, replaces DB records, returns refreshed list
+  - Fetches from USGS, filters, replaces stored documents, returns refreshed list
   - `200 OK`
 
 - `DELETE /api/earthquakes/{usgsId}`
@@ -142,7 +133,7 @@ Run controller test only:
 
 ## Assumptions
 
-- PostgreSQL is available locally.
-- Local credentials are provided via `application-local.properties` or environment variables.
+- MongoDB is available locally.
+- Local MongoDB URI is provided via `application-local.properties` or environment variables.
 - USGS API availability is external and dynamic.
 

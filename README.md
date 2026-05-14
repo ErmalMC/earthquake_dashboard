@@ -4,7 +4,7 @@ Full-stack assignment project for fetching, storing, and visualizing recent USGS
 
 ## Project structure
 
-- `backend/` Spring Boot + PostgreSQL API
+- `backend/` Spring Boot + MongoDB API
 - `frontend/` React (Vite) dashboard UI
 
 ## Quick start

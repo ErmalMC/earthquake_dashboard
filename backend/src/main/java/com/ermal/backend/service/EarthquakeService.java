@@ -21,7 +21,6 @@ import java.util.Locale;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class EarthquakeService {
@@ -56,11 +55,10 @@ public class EarthquakeService {
 
     private final Duration requestTimeout;
 
-    @Transactional
     public List<EarthquakeDTO> refreshEarthquakes() {
         List<Earthquake> parsedEarthquakes = fetchAndParseEarthquakes(Instant.now());
 
-        earthquakeRepository.deleteAllInBatch();
+        earthquakeRepository.deleteAll();
         List<Earthquake> storedEarthquakes = earthquakeRepository.saveAll(parsedEarthquakes);
 
         return toSortedDtos(storedEarthquakes);
@@ -81,7 +79,6 @@ public class EarthquakeService {
                 .toList();
     }
 
-    @Transactional
     public boolean deleteByUsgsId(String usgsId) {
         if (usgsId == null || usgsId.isBlank()) {
             return false;

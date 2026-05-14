@@ -33,7 +33,7 @@ class EarthquakeControllerTest {
     private EarthquakeService earthquakeService;
 
     private static EarthquakeDTO sampleDto(
-            Long id,
+            String id,
             String usgsId,
             double magnitude,
             String place,
@@ -58,7 +58,7 @@ class EarthquakeControllerTest {
     @Test
     void getStoredEarthquakes_returnsOkAndList() throws Exception {
         when(earthquakeService.getStoredEarthquakes(null, null, null)).thenReturn(List.of(sampleDto(
-                1L,
+                "1",
                 "eq-1",
                 3.4,
                 "Test place",
@@ -79,7 +79,7 @@ class EarthquakeControllerTest {
         Instant end = Instant.parse("2026-04-15T12:00:00Z");
 
         when(earthquakeService.getStoredEarthquakes(3.0, start, end)).thenReturn(List.of(sampleDto(
-                3L,
+                "3",
                 "eq-filtered",
                 4.1,
                 "Filtered place",
@@ -99,7 +99,7 @@ class EarthquakeControllerTest {
     @Test
     void refreshEarthquakes_returnsOkAndList() throws Exception {
         when(earthquakeService.refreshEarthquakes()).thenReturn(List.of(sampleDto(
-                2L,
+                "2",
                 "eq-2",
                 4.6,
                 "Another place",

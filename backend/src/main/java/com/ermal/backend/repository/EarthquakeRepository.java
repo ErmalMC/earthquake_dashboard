@@ -4,9 +4,9 @@ import com.ermal.backend.model.Earthquake;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.mongodb.repository.MongoRepository;
 
-public interface EarthquakeRepository extends JpaRepository<Earthquake, Long> {
+public interface EarthquakeRepository extends MongoRepository<Earthquake, String> {
 
     Optional<Earthquake> findByUsgsId(String usgsId);
 
