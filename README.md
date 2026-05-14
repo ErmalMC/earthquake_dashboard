@@ -13,6 +13,27 @@ Full-stack assignment project for fetching, storing, and visualizing recent USGS
 2. Start frontend (see `frontend/README.md`).
 3. Open the frontend URL and sync data from USGS using the UI button.
 
+## Docker quick start
+
+This project now includes:
+
+- `backend/Dockerfile` for the Spring Boot API
+- `frontend/Dockerfile` for the React/Vite UI
+- official `mongo:7` image for MongoDB
+
+Example run flow:
+
+```bash
+docker network create earthquake-net
+docker run --name earthquake-mongo --network earthquake-net -p 27017:27017 -d mongo:7
+
+docker build -t earthquake-backend ./backend
+docker run --name earthquake-backend --network earthquake-net -p 8080:8080 -e MONGODB_URI=mongodb://earthquake-mongo:27017/earthquake_dashboard -d earthquake-backend
+
+docker build -t earthquake-frontend ./frontend
+docker run --name earthquake-frontend --network earthquake-net -p 5173:80 -d earthquake-frontend
+```
+
 ## Assignment coverage snapshot
 
 - Fetch USGS GeoJSON data from last-hour feed

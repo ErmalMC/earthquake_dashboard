@@ -34,3 +34,20 @@ npm run dev
 npm run lint
 npm run build
 ```
+
+## Run with Docker
+
+Build frontend image:
+
+```bash
+docker build -t earthquake-frontend .
+```
+
+Run frontend container:
+
+```bash
+docker run --name earthquake-frontend -p 5173:80 -d earthquake-frontend
+```
+
+The container serves static files with Nginx and proxies `/api/*` requests to `http://backend:8080/api/*`.
+

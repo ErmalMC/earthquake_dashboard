@@ -74,6 +74,23 @@ spring.data.mongodb.uri=mongodb://127.0.0.1:27017/earthquake_dashboard
 App starts on:
 - `http://localhost:8080`
 
+## Run with Docker
+
+Build backend image:
+
+```bash
+docker build -t earthquake-backend .
+```
+
+Example runtime (expects a MongoDB container named `earthquake-mongo` on the same Docker network):
+
+```bash
+docker run --name earthquake-backend \
+  -p 8080:8080 \
+  -e MONGODB_URI=mongodb://earthquake-mongo:27017/earthquake_dashboard \
+  -d earthquake-backend
+```
+
 ## API Endpoints
 
 Base path: `/api/earthquakes`
