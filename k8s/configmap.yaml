@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: earthquake-config
+  namespace: earthquake
+data:
+  VITE_API_BASE_URL: /api

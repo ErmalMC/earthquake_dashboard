@@ -9,7 +9,7 @@ export default function Navbar({
 	<header className="navbar panel">
 	  <div>
 		<h1>Earthquake Dashboard</h1>
-		<p className="subtitle">USGS last-hour data stored by Spring Boot + PostgreSQL</p>
+		<p className="subtitle">USGS last-hour data stored by Spring Boot + MongoDB</p>
 	  </div>
 
 	  <div className="navbar-meta">
