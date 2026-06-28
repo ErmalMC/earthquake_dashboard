@@ -47,18 +47,20 @@ jobs:
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
 
-      - name: Simulate CD — rolling restart
+      - name: Trigger Argo CD sync (simulated)
         run: |
-          echo "CD step: In a production environment, this job would:"
-          echo "  1. Configure kubectl with the target cluster kubeconfig"
-          echo "  2. Run: kubectl rollout restart deployment/backend -n earthquake"
-          echo "  3. Run: kubectl rollout restart deployment/frontend -n earthquake"
-          echo "  4. Run: kubectl rollout status deployment/backend -n earthquake"
-          echo "  5. Run: kubectl rollout status deployment/frontend -n earthquake"
+          echo "CD step: Argo CD is configured to watch the GitHub repository."
+          echo "On every push to master, Argo CD automatically:"
+          echo "  1. Detects changes in the k8s/ directory"
+          echo "  2. Syncs the earthquake namespace with the latest manifests"
+          echo "  3. Performs a rolling restart to pull new images from DockerHub"
           echo ""
-          echo "For this project, the cluster runs locally on Minikube."
-          echo "CD is performed manually with: kubectl rollout restart deployment -n earthquake"
+          echo "Argo CD Application: earthquake-dashboard"
+          echo "Repo: https://github.com/ErmalMC/earthquake_dashboard"
+          echo "Path: k8s/"
+          echo "Namespace: earthquake"
+          echo "Sync Policy: Automatic with Self-Heal and Prune enabled"
           echo ""
-          echo "New images deployed to DockerHub:"
+          echo "New images available on DockerHub:"
           echo "  - ${{ secrets.DOCKERHUB_USERNAME }}/earthquake-backend:latest"
           echo "  - ${{ secrets.DOCKERHUB_USERNAME }}/earthquake-frontend:latest"
