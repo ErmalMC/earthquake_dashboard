@@ -37,7 +37,9 @@ services:
       backend:
         condition: service_started
     ports:
-      - "80:80"
+      - "8081:80"
+    volumes:
+      - ./frontend/nginx.compose.conf:/etc/nginx/conf.d/default.conf
 
 volumes:
   mongo-data:
